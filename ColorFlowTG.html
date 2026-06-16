@@ -1,0 +1,117 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Моя гра - Переливання кольорів</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { background: #1e1e2f; color: white; font-family: Arial; text-align: center; }
+        .glass { display: inline-block; width: 80px; height: 120px; border: 2px solid gold; margin: 10px; border-radius: 0 0 30px 30px; background: #2a2a3a; vertical-align: bottom; }
+        .liquid { background: red; height: 0%; width: 100%; border-radius: 0 0 30px 30px; transition: height 0.3s; }
+        button { background: gold; border: none; padding: 10px 20px; margin: 10px; border-radius: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Переливання кольорів</h1>
+    <div id="game">
+        <div class="glass" data-index="0"><div class="liquid" style="height:100%; background:red"></div></div>
+        <div class="glass" data-index="1"><div class="liquid" style="height:0%"></div></div>
+        <div class="glass" data-index="2"><div class="liquid" style="height:50%; background:blue"></div></div>
+    </div>
+    <p>Натисни на склянку, щоб вибрати, потім на іншу, щоб перелити</p>
+    <div id="info">Баланс: <span id="balance">0</span> монет</div>
+    <button id="adBtn">📺 Подивитись рекламу (+1 монета)</button>
+    <button id="withdrawBtn">💸 Вивести 5 монет (демо)</button>
+    <script>
+        let balance = 0;
+        let selected = null;
+        const glasses = [
+            { color: "red", volume: 100, maxVolume: 100 },
+            { color: "", volume: 0, maxVolume: 100 },
+            { color: "blue", volume: 50, maxVolume: 100 }
+        ];
+        
+        function updateDisplay() {
+            const glassElements = document.querySelectorAll('.glass');
+            glassElements.forEach((el, idx) => {
+                const liquid = el.querySelector('.liquid');
+                const percent = (glasses[idx].volume / glasses[idx].maxVolume) * 100;
+                liquid.style.height = percent + '%';
+                if (glasses[idx].color === 'red') liquid.style.background = 'red';
+                else if (glasses[idx].color === 'blue') liquid.style.background = 'blue';
+                else liquid.style.background = '#555';
+            });
+            document.getElementById('balance').innerText = balance;
+        }
+        
+        function canPour(from, to) {
+            if (glasses[from].volume === 0) return false;
+            if (glasses[to].volume === glasses[to].maxVolume) return false;
+            if (glasses[to].color && glasses[to].color !== glasses[from].color) return false;
+            return true;
+        }
+        
+        function pour(from, to) {
+            if (!canPour(from, to)) return false;
+            const amount = Math.min(glasses[from].volume, glasses[to].maxVolume - glasses[to].volume);
+            glasses[to].color = glasses[to].volume === 0 ? glasses[from].color : glasses[to].color;
+            glasses[from].volume -= amount;
+            glasses[to].volume += amount;
+            if (glasses[from].volume === 0) glasses[from].color = '';
+            updateDisplay();
+            
+            // Перевірка виграшу
+            const nonEmptyColors = glasses.filter(g => g.volume > 0).map(g => g.color);
+            const allSame = nonEmptyColors.length > 0 && nonEmptyColors.every(c => c === nonEmptyColors[0]);
+            if (allSame) {
+                balance += 5;
+                document.getElementById('balance').innerText = balance;
+                alert('Перемога! +5 монет!');
+                // Скинути рівень
+                setTimeout(() => {
+                    glasses[0] = { color: "red", volume: 100, maxVolume: 100 };
+                    glasses[1] = { color: "", volume: 0, maxVolume: 100 };
+                    glasses[2] = { color: "blue", volume: 50, maxVolume: 100 };
+                    updateDisplay();
+                }, 1000);
+            }
+            return true;
+        }
+        
+        document.querySelectorAll('.glass').forEach(glass => {
+            glass.addEventListener('click', () => {
+                const idx = parseInt(glass.dataset.index);
+                if (selected === null) {
+                    selected = idx;
+                    glass.style.border = '3px solid lime';
+                } else {
+                    if (selected !== idx) {
+                        pour(selected, idx);
+                    }
+                    selected = null;
+                    document.querySelectorAll('.glass').forEach(g => g.style.border = '2px solid gold');
+                }
+            });
+        });
+        
+        document.getElementById('adBtn').addEventListener('click', () => {
+            // Імітація перегляду реклами
+            balance += 1;
+            updateDisplay();
+            alert('Рекламу переглянуто! +1 монета');
+        });
+        
+        document.getElementById('withdrawBtn').addEventListener('click', () => {
+            if (balance >= 5) {
+                balance -= 5;
+                updateDisplay();
+                alert('Демо-виведення: 5 монет списано. У реальній версії вони б пішли на ваш крипто-гаманець!');
+            } else {
+                alert('Недостатньо монет! Потрібно 5.');
+            }
+        });
+        
+        updateDisplay();
+    </script>
+</body>
+</html>
