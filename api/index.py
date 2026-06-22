@@ -814,7 +814,7 @@ def api_config():
         logger.error(f"Config error: {e}")
         return jsonify({"ok": False, "error": str(e)}), 500
 
-# ── FLASK МАРШРУТИ ──────────────────────────────────────
+# ── FLASK МАРШРУТИ ─-─────────────────────────────────────
 @app.route("/api/bot", methods=["GET", "POST"])
 def bot_webhook():
     if request.method == "GET":
