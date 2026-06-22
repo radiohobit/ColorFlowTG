@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ColorFlow --- Water Sort</title>
+    <title>ColorFlow -- Water Sort</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
     <style>
@@ -603,22 +603,18 @@ function showCoinAnimation(count = 1, startX = null, startY = null) {
     }
 
     async function apiPost(path, body) {
-    try {
-        const initData = window.Telegram?.WebApp?.initData || '';
-        const r = await fetch(`${API_BASE}${path}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Telegram-InitData': initData
-            },
-            body: JSON.stringify(body),
-        });
-        return await r.json();
-    } catch(e) {
-        console.error('API POST error:', e);
-        return null;
+        try {
+            const r = await fetch(`${API_BASE}${path}`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(body),
+            });
+            return await r.json();
+        } catch(e) {
+            console.error('API POST error:', e);
+            return null;
+        }
     }
-}
 
     // ── СИНХРОНІЗАЦІЯ ──────────────────────────────────
     async function syncBalance() {
@@ -1206,26 +1202,19 @@ async function handleShopClick(skin) {
 }
     
     document.getElementById('claimRewardBtn').addEventListener('click', async () => {
-    if (pendingReward <= 0) return;
-    const reward = pendingReward;
-    document.getElementById('claimRewardBtn').disabled = true;
-    document.getElementById('doubleRewardBtn').disabled = true;
+        if (pendingReward <= 0) return;
+        const reward = pendingReward;
+        document.getElementById('claimRewardBtn').disabled = true;
+        document.getElementById('doubleRewardBtn').disabled = true;
 
-    const result = await addCoinsToServer(reward);
-    if (result?.ok) {
-        coins = result.new_balance;
+        coins += reward;
         updateCoinsUI();
         showCoinAnimation(reward);
+        await addCoinsToServer(reward);
         showToast(t('toast_claimed', { reward: reward }), 'success');
         saveBottlesToLocal();
         await goToNextLevel();
-    } else {
-        showToast(t('toast_error', { msg: result?.error || 'Ошибка начисления' }), 'error');
-        document.getElementById('claimRewardBtn').disabled = false;
-        document.getElementById('doubleRewardBtn').disabled = false;
-        playErrorSound();
-    }
-});
+    });
 
     document.getElementById('doubleRewardBtn').addEventListener('click', async () => {
     if (pendingReward <= 0) return;
