@@ -860,9 +860,9 @@ def api_bot_balance():
 
 @app.route("/api/add_coins", methods=["POST"])
 def api_add_coins():
-    init_data = get_init_data_from_request()
-    if not verify_telegram_init_data(init_data):
-        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+   # init_data = get_init_data_from_request()
+   # if not verify_telegram_init_data(init_data):
+   #     return jsonify({"ok": False, "error": "Unauthorized"}), 401
     try:
         data = request.get_json(force=True, silent=True) or {}
         user_id = int(data.get("user_id", 0))
