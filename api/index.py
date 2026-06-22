@@ -817,10 +817,6 @@ def api_config():
 # ── FLASK МАРШРУТИ ──────────────────────────────────────
 @app.route("/api/bot", methods=["GET", "POST"])
 def bot_webhook():
-    init_data = get_init_data_from_request()
-    if not verify_telegram_init_data(init_data):
-        return jsonify({"ok": False, "error": "Unauthorized"}), 401
-
     if request.method == "GET":
         return jsonify({"status": "ok", "webhook": f"{BASE_URL}/api/bot"})
     try:
