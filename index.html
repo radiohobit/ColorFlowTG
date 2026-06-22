@@ -603,22 +603,18 @@ function showCoinAnimation(count = 1, startX = null, startY = null) {
     }
 
     async function apiPost(path, body) {
-    try {
-        const initData = window.Telegram?.WebApp?.initData || '';
-        const r = await fetch(`${API_BASE}${path}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Telegram-InitData': initData
-            },
-            body: JSON.stringify(body),
-        });
-        return await r.json();
-    } catch(e) {
-        console.error('API POST error:', e);
-        return null;
+        try {
+            const r = await fetch(`${API_BASE}${path}`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(body),
+            });
+            return await r.json();
+        } catch(e) {
+            console.error('API POST error:', e);
+            return null;
+        }
     }
-}
 
     // ── СИНХРОНІЗАЦІЯ ──────────────────────────────────
     async function syncBalance() {
