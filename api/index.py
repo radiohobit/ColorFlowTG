@@ -26,43 +26,6 @@ def load_config():
         return {}
 
 CONFIG = load_config()
-
-# ── Функция проверки initData ────────────────────────────
-
-import hashlib
-import hmac
-from urllib.parse import parse_qs
-
-def verify_telegram_init_data(init_data: str) -> bool:
-    """Проверяет подпись initData от Telegram WebApp."""
-    if not init_data:
-        return False
-    data = parse_qs(init_data)
-    if not data.get('hash'):
-        return False
-    received_hash = data['hash'][0]
-    # Убираем hash из словаря для вычисления
-    check_pairs = sorted([(k, v[0]) for k, v in data.items() if k != 'hash'])
-    check_string = '\n'.join([f"{k}={v}" for k, v in check_pairs])
-    # Вычисляем HMAC-SHA256
-    secret_key = hashlib.sha256(TOKEN.encode()).digest()
-    computed_hash = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
-    return computed_hash == received_hash
-
-# ── функция для получения initData из запроса ──────
-
-def get_init_data_from_request():
-    """Извлекает initData из заголовка или тела запроса."""
-    # Сначала проверяем заголовок
-    init_data = request.headers.get("X-Telegram-InitData")
-    if init_data:
-        return init_data
-    # Если нет – смотрим в теле (на случай, если передают в JSON)
-    if request.is_json:
-        data = request.get_json(silent=True) or {}
-        return data.get("initData", "")
-    return ""
-
 ECONOMY = CONFIG.get('economy', {})
 
 REWARD_PER_AD = ECONOMY.get('rewardPerAd', 5)
@@ -780,10 +743,6 @@ def api_daily_bonus():
 
 @app.route("/api/claim_daily_bonus", methods=["POST"])
 def api_claim_daily_bonus():
-    init_data = get_init_data_from_request()
-    if not verify_telegram_init_data(init_data):
-        return jsonify({"ok": False, "error": "Unauthorized"}), 401
-    
     try:
         data = request.get_json(force=True, silent=True) or {}
         user_id = int(data.get("user_id", 0))
@@ -814,7 +773,7 @@ def api_config():
         logger.error(f"Config error: {e}")
         return jsonify({"ok": False, "error": str(e)}), 500
 
-# ── FLASK МАРШРУТИ ─-─────────────────────────────────────
+# ── FLASK МАРШРУТИ ──────────────────────────────────────
 @app.route("/api/bot", methods=["GET", "POST"])
 def bot_webhook():
     if request.method == "GET":
@@ -860,9 +819,6 @@ def api_bot_balance():
 
 @app.route("/api/add_coins", methods=["POST"])
 def api_add_coins():
-   # init_data = get_init_data_from_request()
-   # if not verify_telegram_init_data(init_data):
-   #     return jsonify({"ok": False, "error": "Unauthorized"}), 401
     try:
         data = request.get_json(force=True, silent=True) or {}
         user_id = int(data.get("user_id", 0))
@@ -892,9 +848,6 @@ def api_level():
 
 @app.route("/api/update_level", methods=["POST"])
 def api_update_level():
-    init_data = get_init_data_from_request()
-    if not verify_telegram_init_data(init_data):
-        return jsonify({"ok": False, "error": "Unauthorized"}), 401
     try:
         data = request.get_json(force=True, silent=True) or {}
         user_id = int(data.get("user_id", 0))
@@ -912,9 +865,6 @@ def api_update_level():
 
 @app.route("/api/adsgram_reward", methods=["GET", "POST"])
 def api_adsgram_reward():
-    init_data = get_init_data_from_request()
-    if not verify_telegram_init_data(init_data):
-        return jsonify({"ok": False, "error": "Unauthorized"}), 401
     try:
         if request.method == "GET":
             user_id = request.args.get("user_id")
@@ -941,9 +891,6 @@ def api_adsgram_reward():
 # ── WITHDRAW (оновлена логіка з перевірками) ──────────
 @app.route("/api/withdraw", methods=["POST"])
 def api_withdraw():
-    init_data = get_init_data_from_request()
-    if not verify_telegram_init_data(init_data):
-        return jsonify({"ok": False, "error": "Unauthorized"}), 401
     try:
         data = request.get_json(force=True, silent=True) or {}
         user_id = int(data.get("user_id", 0))
@@ -1064,10 +1011,6 @@ def get_skins_endpoint():
 
 @app.route("/api/buy_skin", methods=["POST"])
 def buy_skin():
-    init_data = get_init_data_from_request()
-    if not verify_telegram_init_data(init_data):
-        return jsonify({"ok": False, "error": "Unauthorized"}), 401
-
     try:
         data = request.get_json(force=True, silent=True) or {}
         user_id = int(data.get("user_id", 0))
@@ -1124,10 +1067,6 @@ def buy_skin():
 
 @app.route("/api/activate_skin", methods=["POST"])
 def activate_skin():
-    init_data = get_init_data_from_request()
-    if not verify_telegram_init_data(init_data):
-        return jsonify({"ok": False, "error": "Unauthorized"}), 401
-
     try:
         data = request.get_json(force=True, silent=True) or {}
         user_id = int(data.get("user_id", 0))
