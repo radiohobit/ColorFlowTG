@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ColorFlow -- Water Sort</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        html, body { margin: 0; padding: 0; height: 100%; min-height: 100dvh; overflow: hidden; background: #0a0a14; font-family: 'Segoe UI', system-ui, sans-serif; }
+        #app {
+            width: 100%;
+            height: 100dvh;
+            max-width: 100%;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: radial-gradient(circle at 20% 20%, #1a1a2e 0%, #0a0a14 90%);
+            padding: 16px;
+            box-sizing: border-box;
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
+            position: relative;
+            transition: background 0.6s ease;
+        }
+        /* Плавний перехід між рівнями */
+#bottles-grid {
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    opacity: 1;
+    transform: scale(1);
+}
+#bottles-grid.fade-out {
+    opacity: 0 !important;
+    transform: scale(0.95) !important;
+}
+#bottles-grid.fade-in {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+}
+
+/* Анімація монет */
+.coin-particle-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10000;
+    overflow: visible;
+}
+.coin-particle {
+    position: absolute;
+    font-size: 28px;
+    line-height: 1;
+    pointer-events: none;
+    animation: coinFly 2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes coinFly {
+    0% {
+        opacity: 1;
+        transform: translate(0, 0) scale(1) rotate(0deg);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(var(--tx), var(--ty)) scale(0.3) rotate(720deg);
+    }
+}
+
+        #header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid rgba(255,215,0,0.15); flex-shrink: 0; }
+        .level-info { display: flex; align-items: center; gap: 12px; }
+        .level-badge { background: linear-gradient(135deg, #f7971e, #ffd200); padding: 4px 14px; border-radius: 20px; font-weight: 700; font-size: 14px; color: #0a0a14; letter-spacing: 0.5px; }
+        .coins { display: flex; align-items: center; gap: 6px; background: rgba(255,215,0,0.12); padding: 4px 14px 4px 10px; border-radius: 30px; border: 1px solid rgba(255,215,0,0.2); font-weight: 600; font-size: 16px; }
+        .coins span { color: #ffd700; font-size: 18px; }
+        #game-area { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 10px 0; min-height: 0; }
+        #bottles-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; justify-items: center; align-items: end; width: 100%; }
+        .bottle-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; cursor: pointer; transition: transform 0.15s ease; }
+        .bottle-wrapper:active { transform: scale(0.95); }
+        .bottle {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 2.2;
+            max-width: 80px;
+            background: rgba(255,255,255,0.03);
+            border: 3px solid rgba(255,255,255,0.2);
+            border-radius: 0 0 30px 30px;
+            border-top: none;
+            display: flex;
+            flex-direction: column-reverse;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            transition: border-color 0.4s ease, box-shadow 0.4s ease;
+        }
+        .bottle::before {
+            content: '';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 28%;
+            height: 15px;
+            background: rgba(255,255,255,0.03);
+            border: 3px solid rgba(255,255,255,0.2);
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .bottle::after {
+            content: '';
+            position: absolute;
+            top: 12%;
+            left: 12%;
+            width: 16%;
+            height: 20%;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 6;
+        }
+        .bottle.selected {
+            border-color: #ffd700;
+            box-shadow: 0 0 25px rgba(255,215,0,0.4);
+        }
+        .bottle .liquid {
+            width: 100%;
+            transition: height 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            flex-shrink: 0;
+            /* box-shadow: inset 0 -2px 6px rgba(0,0,0,0.3); */
+            border-top: 1px solid rgba(0,0,0,0.15);
+        }
+        #controls { display: flex; gap: 10px; margin-top: 10px; flex-shrink: 0; flex-wrap: wrap; justify-content: center; }
+        .btn { padding: 10px 20px; border: none; border-radius: 16px; font-weight: 600; font-size: 14px; background: rgba(255,255,255,0.06); color: #fff; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.08); flex: 1; min-width: 60px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn:active { transform: scale(0.94); }
+        .btn-primary { background: linear-gradient(135deg, #f7971e, #ffd200); color: #0a0a14; border: none; font-weight: 700; }
+        .btn-secondary { background: rgba(255,255,255,0.08); }
+        .btn-success { background: rgba(48,209,88,0.15); border-color: rgba(48,209,88,0.2); color: #30d158; }
+        .btn-withdraw { background: linear-gradient(135deg, #6e3ff3, #a855f7); color: #fff; border: none; font-weight: 700; }
+        .btn-shop { background: linear-gradient(135deg, #f7971e, #ffd200); color: #0a0a14; border: none; font-weight: 700; }
+        .btn:disabled { opacity: 0.4; pointer-events: none; filter: grayscale(0.5); }
+        /* Shop */
+        .shop-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; max-height: 320px; overflow-y: auto; padding: 4px; }
+        .shop-item { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 12px 8px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .shop-item:hover { border-color: #ffd700; background: rgba(255,215,0,0.08); }
+        .shop-item.selected { border-color: #ffd700; background: rgba(255,215,0,0.15); }
+        .shop-item .emoji { font-size: 28px; display: block; }
+        .shop-item .name { font-size: 11px; color: #aaa; margin-top: 4px; }
+        .shop-item .price { font-size: 12px; color: #ffd700; font-weight: 700; }
+        .shop-item .owned { font-size: 11px; color: #30d158; }
+        .shop-item .preview { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 4px; }
+        .shop-item .preview-color { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); }
+        .shop-item .preview-bg { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); }
+        .shop-item.locked { opacity: 0.5; cursor: not-allowed; }
+        .shop-item.locked:hover { border-color: rgba(255,255,255,0.1); background: transparent; }
+        .shop-loading { color: #888; text-align: center; padding: 30px 0; grid-column: 1 / -1; }
+        /* Modals */
+        .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); border-radius: 0; display: none; justify-content: center; align-items: center; z-index: 100; flex-direction: column; padding: 30px; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: #1c1c2e; border: 1px solid rgba(255,215,0,0.2); border-radius: 30px; padding: 35px 25px; text-align: center; max-width: 420px; width: 100%; animation: bounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); max-height: 90vh; overflow-y: auto; }
+        @keyframes bounceIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .modal-box h2 { font-size: 28px; background: linear-gradient(135deg, #ffd700, #f7971e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+        .modal-box p { color: #aaa; margin-bottom: 20px; font-size: 16px; }
+        .modal-box .btn { width: 100%; margin-top: 8px; }
+        .withdraw-box { background: linear-gradient(145deg, #1c1c2e, #16213e); border: 1px solid rgba(110,63,243,0.3); }
+        .withdraw-box h2 { background: linear-gradient(135deg, #a855f7, #6e3ff3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .withdraw-steps { text-align: left; margin: 16px 0; }
+        .withdraw-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 13px; color: #ccc; }
+        .withdraw-step-num { background: linear-gradient(135deg, #6e3ff3, #a855f7); color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+        .balance-big { font-size: 42px; font-weight: 900; color: #ffd700; margin: 10px 0; }
+        .balance-sub { font-size: 12px; color: #666; margin-bottom: 16px; }
+        .ad-loading { display: flex; align-items: center; justify-content: center; gap: 8px; color: #a855f7; font-size: 13px; margin: 8px 0; }
+        .spinner { width: 16px; height: 16px; border: 2px solid rgba(168,85,247,0.3); border-top-color: #a855f7; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .shop-balance { font-size: 14px; color: #ffd700; font-weight: 700; }
+        /* Toast */
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: rgba(30,30,50,0.95); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 12px 24px; border-radius: 20px; font-size: 14px; font-weight: 600; z-index: 999; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s; opacity: 0; backdrop-filter: blur(10px); white-space: nowrap; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.success { border-color: rgba(48,209,88,0.4); }
+        .toast.error { border-color: rgba(255,69,58,0.4); }
+        .coin-svg { display: inline-block; width: 20px; height: 20px; vertical-align: middle; margin: 0 2px; }
+        @media (max-width: 400px) { #app { padding: 12px; } .bottle { max-width: 65px; } #bottles-grid { gap: 8px; } .btn { padding: 8px 12px; font-size: 12px; } .shop-grid { grid-template-columns: repeat(3, 1fr); } }
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background: rgba(10,10,20,0.95);
+            z-index: 9999;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        #loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,215,0,0.2);
+            border-top-color: #ffd700;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        #loading span {
+            color: #aaa;
+            margin-top: 16px;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Прелоадер -->
+    <div id="loading">
+        <div class="spinner"></div>
+        <span id="loadingText">Завантаження...</span>
+    </div>
+
+    <div id="app">
+        <div id="header">
+            <div class="level-info">
+                <div class="level-badge" id="levelDisplay">Рівень 1</div>
+            </div>
+            <div class="coins">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" fill="#FFD700" stroke="#F7971E" stroke-width="1.5"/>
+                    <text x="12" y="16" font-family="Arial" font-size="10" font-weight="bold" fill="#8B7500" text-anchor="middle">$</text>
+                </svg>
+                <span id="coinDisplay">100</span>
+            </div>
+        </div>
+
+        <div id="game-area">
+            <div id="bottles-grid"></div>
+        </div>
+
+        <div id="controls">
+            <button class="btn btn-secondary" id="undoBtn"></button>
+            <button class="btn btn-secondary" id="shuffleBtn"></button>
+            <button class="btn btn-success" id="adBtn"></button>
+            <button class="btn btn-shop" id="shopBtn"></button>
+            <button class="btn btn-withdraw" id="withdrawBtn"></button>
+        </div>
+
+        <!-- Win Modal -->
+        <div class="modal-overlay" id="winModal">
+            <div class="modal-box">
+                <h2 id="winTitle">🎉 Перемога!</h2>
+                <p id="winMessage"></p>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+                    <button class="btn btn-secondary" id="claimRewardBtn"></button>
+                    <button class="btn btn-primary" id="doubleRewardBtn"></button>
+                </div>
+                <div id="doubleLoading" style="display:none; margin-top:10px; color:#a855f7; font-size:13px;">
+                    <span id="doubleLoadingText">⏳ Завантаження реклами...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shop Modal -->
+        <div class="modal-overlay" id="shopModal">
+            <div class="modal-box" style="max-width: 420px; width: 100%;">
+                <h2 id="shopTitle">🎨 Магазин скінів</h2>
+                <p style="font-size: 13px; color: #888; margin-bottom: 8px;">
+                    <span id="shopBalanceLabel">💰 Твій баланс:</span> <span class="shop-balance" id="shopBalance">0</span> <span id="shopCoinsLabel">монет</span>
+                </p>
+                <div id="shopGrid" class="shop-grid">
+                    <div class="shop-loading" id="shopLoadingText">⏳ Завантаження скінів...</div>
+                </div>
+                <button class="btn btn-secondary" id="closeShopBtn">✕ Закрити</button>
+            </div>
+        </div>
+
+        <!-- Withdraw Modal -->
+        <div class="modal-overlay" id="withdrawModal">
+            <div class="modal-box withdraw-box">
+                <h2 id="withdrawTitle">💸 Виведення</h2>
+                <div class="balance-big" id="withdrawBalance">0</div>
+                <div class="balance-sub" id="withdrawSub">монет на ігровому балансі</div>
+                <div class="withdraw-steps">
+                    <div class="withdraw-step">
+                        <div class="withdraw-step-num">1</div>
+                        <div id="withdrawStep1">Переглянь рекламу щоб підтвердити виведення</div>
+                    </div>
+                    <div class="withdraw-step">
+                        <div class="withdraw-step-num">2</div>
+                        <div id="withdrawStep2">Монети перейдуть на баланс бота</div>
+                    </div>
+                    <div class="withdraw-step">
+                        <div class="withdraw-step-num">3</div>
+                        <div id="withdrawStep3">При накопиченні 500 монет на балансі бота — виплата в USDT</div>
+                    </div>
+                </div>
+                <div id="adLoadingIndicator" style="display:none" class="ad-loading">
+                    <div class="spinner"></div>
+                    <span id="adLoadingText">Завантаження реклами...</span>
+                </div>
+                <button class="btn btn-withdraw" id="watchAdWithdrawBtn"></button>
+                <button class="btn btn-secondary" id="closeWithdrawBtn"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+    // ══════════════════════════════════════════════════════
+    //  ПЕРЕКЛАДИ
+    // ══════════════════════════════════════════════════════
+    const LOCALES = {
+        uk: {
+            loading: "Завантаження...",
+            level: "Рівень",
+            undo: "↩️ Скас.",
+            shuffle: "🔀 Шафл (реклама)",
+            ad: "📺 +{reward}",
+            shop: "🎨 Магазин",
+            withdraw: "💸 Вивести",
+            win_title: "🎉 Перемога!",
+            win_message: "Ви виграли <strong>{reward}</strong> {coin_icon} монет!<br>Хочете подвоїти нагороду за перегляд реклами?",
+            claim: "💰 Отримати",
+            double: "🎬 Подвоїти (реклама)",
+            loading_ad: "⏳ Завантаження реклами...",
+            shop_title: "🎨 Магазин скінів",
+            shop_balance: "💰 Твій баланс:",
+            shop_coins: "монет",
+            shop_loading: "⏳ Завантаження скінів...",
+            close: "✕ Закрити",
+            withdraw_title: "💸 Виведення",
+            withdraw_sub: "монет на ігровому балансі",
+            withdraw_step1: "Переглянь рекламу щоб підтвердити виведення",
+            withdraw_step2: "Монети перейдуть на баланс бота",
+            withdraw_step3: "При накопиченні {threshold} монет на балансі бота — виплата в USDT",
+            watch_ad: "📺 Переглянути рекламу",
+            cancel: "✕ Скасувати",
+            toast_plus: "+{amount} монет за рекламу! 🎉",
+            toast_withdraw: "✅ {amount} монет виведено на баланс бота!",
+            toast_error: "❌ {msg}",
+            toast_claimed: "+{reward} монет! 🎉",
+            toast_doubled: "🎉 Нагороду подвоєно! +{reward} монет!",
+            ad_loading: "Завантаження реклами...",
+            need_more: "❌ Потрібно мінімум {min} монет на ігровому балансі!",
+            insufficient: "❌ Недостатньо монет! Потрібно {price}",
+            ad_error_unavailable: "Реклама недоступна",
+            ad_error_not_finished: "Перегляньте рекламу до кінця",
+            ad_error_general: "Помилка показу реклами",
+            ad_error_no_ad: "Наразі немає реклами. Спробуйте пізніше.",
+            ad_error_blocked: "Реклама заблокована. Вимкніть AdBlock.",
+            shop_owned: "✓ У власності",
+            shop_active: "✅ Активний"
+        },
+        ru: {
+            loading: "Загрузка...",
+            level: "Уровень",
+            undo: "↩️ Отм.",
+            shuffle: "🔀 Шафл (реклама)",
+            ad: "📺 +{reward}",
+            shop: "🎨 Магазин",
+            withdraw: "💸 Вывести",
+            win_title: "🎉 Победа!",
+            win_message: "Вы выиграли <strong>{reward}</strong> {coin_icon} монет!<br>Хотите удвоить награду за просмотр рекламы?",
+            claim: "💰 Получить",
+            double: "🎬 Удвоить (реклама)",
+            loading_ad: "⏳ Загрузка рекламы...",
+            shop_title: "🎨 Магазин скинов",
+            shop_balance: "💰 Твой баланс:",
+            shop_coins: "монет",
+            shop_loading: "⏳ Загрузка скинов...",
+            close: "✕ Закрыть",
+            withdraw_title: "💸 Вывод",
+            withdraw_sub: "монет на игровом балансе",
+            withdraw_step1: "Посмотри рекламу для подтверждения вывода",
+            withdraw_step2: "Монеты перейдут на баланс бота",
+            withdraw_step3: "При накоплении {threshold} монет на балансе бота — выплата в USDT",
+            watch_ad: "📺 Посмотреть рекламу",
+            cancel: "✕ Отменить",
+            toast_plus: "+{amount} монет за рекламу! 🎉",
+            toast_withdraw: "✅ {amount} монет выведено на баланс бота!",
+            toast_error: "❌ {msg}",
+            toast_claimed: "+{reward} монет! 🎉",
+            toast_doubled: "🎉 Награда удвоена! +{reward} монет!",
+            ad_loading: "Загрузка рекламы...",
+            need_more: "❌ Нужно минимум {min} монет на игровом балансе!",
+            insufficient: "❌ Недостаточно монет! Нужно {price}",
+            ad_error_unavailable: "Реклама недоступна",
+            ad_error_not_finished: "Просмотрите рекламу до конца",
+            ad_error_general: "Ошибка показа рекламы",
+            ad_error_no_ad: "Сейчас нет рекламы. Попробуйте позже.",
+            ad_error_blocked: "Реклама заблокирована. Отключите AdBlock.",
+            shop_owned: "✓ В собственности",
+            shop_active: "✅ Активный"
+        }
+    };
+
+    const DEFAULT_LANG = 'ru';
+    let currentLang = DEFAULT_LANG;
+
+    function detectLang() {
+        const urlParams = new URLSearchParams(window.location.search);
+        let lang = urlParams.get('lang') || localStorage.getItem('colorflow_lang') || DEFAULT_LANG;
+        if (!['uk','ru'].includes(lang)) lang = DEFAULT_LANG;
+        localStorage.setItem('colorflow_lang', lang);
+        currentLang = lang;
+        return lang;
+    }
+    detectLang();
+
+    function t(key, params = {}) {
+        let text = LOCALES[currentLang]?.[key] || LOCALES[DEFAULT_LANG]?.[key] || key;
+        for (let [k, v] of Object.entries(params)) {
+            text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+        }
+        return text;
+    }
+
+    function coinSvg() {
+        return `<svg class="coin-svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#FFD700" stroke="#F7971E" stroke-width="1.5"/><text x="12" y="16" font-family="Arial" font-size="10" font-weight="bold" fill="#8B7500" text-anchor="middle">$</text></svg>`;
+    }
+function showCoinAnimation(count = 1, startX = null, startY = null) {
+    const container = document.createElement('div');
+    container.className = 'coin-particle-container';
+    document.body.appendChild(container);
+
+    if (startX === null || startY === null) {
+        const coinDisplay = document.getElementById('coinDisplay');
+        const rect = coinDisplay.getBoundingClientRect();
+        startX = rect.left + rect.width / 2;
+        startY = rect.top + rect.height / 2;
+        // Якщо елемент не знайдено – центр екрана
+        if (!rect.width) {
+            startX = window.innerWidth / 2;
+            startY = window.innerHeight / 2;
+        }
+    }
+
+    const particleCount = Math.min(count * 2, 30); // більше частинок
+    const emojis = ['🪙', '💰', '⭐', '✨', '💎'];
+    const colors = ['#FFD700', '#FFA500', '#FF6B35', '#FFD700', '#FFFFFF'];
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'coin-particle';
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        // Більший розкид, але не надто далеко
+        const angle = Math.random() * 2 * Math.PI;
+        const distance = 120 + Math.random() * 200; // 120–320 пікселів
+        const tx = Math.cos(angle) * distance;
+        const ty = Math.sin(angle) * distance - 40; // менше зміщення вгору
+        particle.style.setProperty('--tx', tx + 'px');
+        particle.style.setProperty('--ty', ty + 'px');
+        particle.style.left = startX + 'px';
+        particle.style.top = startY + 'px';
+        particle.style.animationDelay = (Math.random() * 0.3) + 's';
+        const size = 24 + Math.random() * 28;
+        particle.style.fontSize = size + 'px';
+        particle.style.color = colors[Math.floor(Math.random() * colors.length)];
+        particle.style.textShadow = `0 0 12px ${colors[Math.floor(Math.random() * colors.length)]}`;
+        container.appendChild(particle);
+    }
+
+    setTimeout(() => {
+        container.remove();
+    }, 2200); // синхронізуємо з тривалістю анімації + затримки
+}
+
+// ══════════════════════════════════════════════════════
+    //  КОНФІГ
+    // ══════════════════════════════════════════════════════
+    const API_BASE   = 'https://colorflowtg.vercel.app';
+    //const BLOCK_ID   = '35621';
+    const BLOCK_ID_REWARD = '35621';    // для реклами з винагородою
+    const BLOCK_ID_INTERSTITIAL = 'int-35820'; // для звичайного Interstitial
+    let CONFIG = {};
+    let MIN_WITHDRAW = 20;
+
+    const COLORS = [
+        '#FF453A', '#007AFF', '#34C759', '#FF9F0A',
+        '#AF52DE', '#FF2D92', '#5AC8FA', '#FFD700'
+    ];
+
+    // ══════════════════════════════════════════════════════
+    //  СТАН
+    // ══════════════════════════════════════════════════════
+    let bottles      = [];
+    let selectedIndex = -1;
+    let coins        = 100;
+    let level        = 1;
+    let history      = [];
+    let isAnimating  = false;
+    let shuffleInProgress = false;
+    let pourAnimationTimer = null;
+    let userId       = 12345;
+    let allSkins     = [];
+    let activeSkinId = 0;
+    let isLoadingSkins = false;
+    let pendingReward = 0;
+
+    // ══════════════════════════════════════════════════════
+    //  TELEGRAM INIT
+    // ══════════════════════════════════════════════════════
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+        tg.expand();
+        tg.ready();
+        tg.onEvent('viewportChanged', () => {
+            document.getElementById('app').style.height = '100dvh';
+        });
+        if (tg.initDataUnsafe?.user?.id) {
+            userId = tg.initDataUnsafe.user.id;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  ADSGRAM INIT
+    // ══════════════════════════════════════════════════════
+    //let AdController = null;
+    let AdControllerReward = null;
+    let AdControllerInterstitial = null;
+
+    function initAdsgram() {
+    if (window.Adsgram) {
+        try {
+            // Контролер для винагороджувальної реклами
+            AdControllerReward = window.Adsgram.init({
+                blockId: BLOCK_ID_REWARD,
+                debug: false,
+                debugBannerType: 'FullscreenMedia',
+            });
+            // Контролер для Interstitial
+            AdControllerInterstitial = window.Adsgram.init({
+                blockId: BLOCK_ID_INTERSTITIAL,
+                debug: false,
+                debugBannerType: 'FullscreenMedia',
+            });
+            console.log('✅ Adsgram initialized (Reward + Interstitial)');
+        } catch(e) {
+            console.warn('Adsgram init error:', e);
+        }
+    } else {
+        setTimeout(initAdsgram, 1000);
+    }
+}
+
+    if (document.readyState === 'complete') {
+        initAdsgram();
+    } else {
+        window.addEventListener('load', initAdsgram);
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  TOAST
+    // ══════════════════════════════════════════════════════
+    function showToast(msg, type = 'success', duration = 2500) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className   = `toast ${type} show`;
+        setTimeout(() => { t.classList.remove('show'); }, duration);
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  ЗВУКИ
+    // ══════════════════════════════════════════════════════
+    let audioCtx = null;
+    function getACtx() {
+        if (!audioCtx) {
+            try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+        }
+        return audioCtx;
+    }
+    function playTone(freq, dur, type = 'sine', vol = 0.3) {
+        try {
+            const ctx = getACtx(); if (!ctx) return;
+            if (ctx.state === 'suspended') ctx.resume();
+            const o = ctx.createOscillator(), g = ctx.createGain();
+            o.type = type; o.frequency.value = freq;
+            g.gain.value = vol;
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(); o.stop(ctx.currentTime + dur);
+        } catch(e) {}
+    }
+    const playPourSound  = () => { playTone(600,0.1,'sine',0.2); setTimeout(()=>playTone(800,0.1,'sine',0.2),50); };
+    const playWinSound   = () => [523,659,784,1047].forEach((f,i)=>setTimeout(()=>playTone(f,0.15,'sine',0.25),i*100));
+    const playCoinSound  = () => { playTone(880,0.1,'sine',0.3); setTimeout(()=>playTone(1100,0.15,'sine',0.3),80); setTimeout(()=>playTone(1320,0.2,'sine',0.3),160); };
+    const playErrorSound = () => { playTone(300,0.3,'sawtooth',0.15); setTimeout(()=>playTone(250,0.3,'sawtooth',0.15),100); };
+    document.addEventListener('click', () => { const c=getACtx(); if(c?.state==='suspended') c.resume(); }, { once: true });
+
+    // ══════════════════════════════════════════════════════
+    //  API
+    // ══════════════════════════════════════════════════════
+    async function apiGet(path) {
+        try {
+            const r = await fetch(`${API_BASE}${path}`);
+            return await r.json();
+        } catch(e) {
+            console.error('API GET error:', e);
+            return null;
+        }
+    }
+
+    async function apiPost(path, body) {
+        try {
+            const r = await fetch(`${API_BASE}${path}`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(body),
+            });
+            return await r.json();
+        } catch(e) {
+            console.error('API POST error:', e);
+            return null;
+        }
+    }
+
+    // ── СИНХРОНІЗАЦІЯ ──────────────────────────────────
+    async function syncBalance() {
+        const data = await apiGet(`/api/balance?user_id=${userId}`);
+        if (data?.ok && data.balance !== undefined) {
+            coins = data.balance;
+            updateCoinsUI();
+            console.log('🔄 Game balance synced:', coins);
+            return true;
+        }
+        return false;
+    }
+
+    async function syncLevel() {
+        try {
+            const data = await apiGet(`/api/level?user_id=${userId}`);
+            if (data?.ok && data.level !== undefined) {
+                level = data.level;
+                document.getElementById('levelDisplay').textContent = t('level') + ' ' + level;
+                console.log('🔄 Level synced from server:', level);
+                return true;
+            }
+            return false;
+        } catch(e) {
+            console.error('❌ Failed to sync level:', e);
+            return false;
+        }
+    }
+
+    async function updateLevelOnServer(newLevel) {
+        try {
+            const data = await apiPost('/api/update_level', {
+                user_id: userId,
+                level: newLevel
+            });
+            if (data?.ok) {
+                console.log('✅ Level updated on server:', newLevel);
+                return true;
+            }
+            return false;
+        } catch(e) {
+            console.error('❌ Failed to update level:', e);
+            return false;
+        }
+    }
+
+    async function addCoinsToServer(amount) {
+        const data = await apiPost('/api/add_coins', {
+            user_id: userId,
+            amount:  amount,
+        });
+        if (data?.ok) {
+            console.log('✅ Coins added, balance:', data.new_balance);
+        }
+        return data;
+    }
+
+    // ── ЗАВАНТАЖЕННЯ СТАНУ З localStorage ──────────────
+    function loadBottlesFromLocal() {
+        try {
+            const raw = localStorage.getItem('OrelGames_save');
+            if (raw) {
+                const data = JSON.parse(raw);
+                if (data.bottles?.length > 0) {
+                    bottles = data.bottles;
+                    render();
+                    return true;
+                }
+            }
+            return false;
+        } catch(e) {
+            console.warn('Failed to load bottles:', e);
+            return false;
+        }
+    }
+
+    function saveBottlesToLocal() {
+        try {
+            localStorage.setItem('OrelGames_save', JSON.stringify({ bottles }));
+        } catch(e) {}
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  ПОКАЗ РЕКЛАМИ З КОЛБЕКОМ (універсальний)
+    // ══════════════════════════════════════════════════════
+    function showAdWithCallback(controller, onSuccess, onError) {
+    if (!controller) {
+        if (onError) onError(t('ad_error_unavailable') || 'Реклама недоступна');
+        return;
+    }
+    controller.show()
+        .then(result => {
+            if (result.done) {
+                if (onSuccess) onSuccess();
+            } else {
+                if (onError) onError(t('ad_error_not_finished') || 'Перегляньте рекламу до кінця');
+            }
+        })
+        .catch(error => {
+            console.error('Ad error:', error);
+            let msg = t('ad_error_general') || 'Помилка показу реклами';
+            if (error.message && error.message.includes('No ad')) {
+                msg = t('ad_error_no_ad') || 'Наразі немає реклами. Спробуйте пізніше.';
+            } else if (error.code === 'AD_BLOCKED') {
+                msg = t('ad_error_blocked') || 'Реклама заблокована. Вимкніть AdBlock.';
+            }
+            if (onError) onError(msg);
+        });
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  РЕКЛАМА ЗА МОНЕТИ (звичайна)
+    // ══════════════════════════════════════════════════════
+    async function showSimpleAd() {
+        if (isAnimating) return;
+        const btn = document.getElementById('adBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳ ...';
+        const rewardAmount = CONFIG.rewardPerAd || 5;
+
+        showAdWithCallback(
+            // AdControllerReward, // <- контролер для Reward
+            AdControllerInterstitial, // <- контролер для Interstitial
+            async () => {
+                coins += rewardAmount;
+                updateCoinsUI();
+                showCoinAnimation(rewardAmount);
+                await addCoinsToServer(rewardAmount);
+                playCoinSound();
+                showToast(t('toast_plus', { amount: rewardAmount }), 'success');
+                if (navigator.vibrate) navigator.vibrate(30);
+                btn.textContent = t('ad', { reward: rewardAmount });
+                btn.disabled = false;
+            },
+            (errorMsg) => {
+                showToast(t('toast_error', { msg: errorMsg }), 'error');
+                btn.textContent = t('ad', { reward: rewardAmount });
+                btn.disabled = false;
+                playErrorSound();
+            }
+        );
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  ВІДКРИТИ / ЗАКРИТИ МОДАЛКУ ВИВЕДЕННЯ
+    // ══════════════════════════════════════════════════════
+    function openWithdrawModal() {
+        if (isAnimating) return;
+        if (coins < MIN_WITHDRAW) {
+            showToast(t('need_more', { min: MIN_WITHDRAW }), 'error');
+            playErrorSound();
+            return;
+        }
+        document.getElementById('withdrawBalance').textContent = coins;
+        document.getElementById('withdrawModal').classList.add('active');
+    }
+
+    function closeWithdrawModal() {
+        document.getElementById('withdrawModal').classList.remove('active');
+        document.getElementById('adLoadingIndicator').style.display = 'none';
+        document.getElementById('watchAdWithdrawBtn').disabled = false;
+        document.getElementById('watchAdWithdrawBtn').textContent = t('watch_ad');
+    }
+
+    async function watchAdAndWithdraw() {
+    const btn = document.getElementById('watchAdWithdrawBtn');
+    const loader = document.getElementById('adLoadingIndicator');
+
+    btn.disabled = true;
+    btn.textContent = '⏳ ' + t('ad_loading');
+    loader.style.display = 'flex';
+
+    showAdWithCallback(
+        //AdControllerInterstitial, // <- контролер для Interstitial
+        AdControllerReward, // <- контролер для Reward
+        async () => {
+            loader.style.display = 'none';
+            await processWithdraw();
+        },
+        (errorMsg) => {
+            loader.style.display = 'none';
+            showToast(t('toast_error', { msg: errorMsg }), 'error');
+            btn.disabled = false;
+            btn.textContent = t('watch_ad');
+            playErrorSound();
+        }
+    );
+    }
+
+    async function processWithdraw() {
+    const data = await apiPost('/api/withdraw', {
+        user_id: userId,
+        amount:  coins,
+    });
+
+    if (data?.ok) {
+        const withdrawn = data.withdrawn;
+        coins = data.new_balance;
+        updateCoinsUI();
+        console.log('💰 Balance after withdraw:', coins);
+        saveBottlesToLocal();
+
+        closeWithdrawModal();
+        playCoinSound();
+        if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+
+        showToast(t('toast_withdraw', { amount: withdrawn }), 'success', 3000);
+    } else {
+        showToast(t('toast_error', { msg: data?.error || 'Помилка виведення' }), 'error');
+        document.getElementById('watchAdWithdrawBtn').disabled = false;
+        document.getElementById('watchAdWithdrawBtn').textContent = t('watch_ad');
+    }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  МАГАЗИН СКІНІВ
+    // ══════════════════════════════════════════════════════
+    async function loadSkins() {
+        if (isLoadingSkins) return;
+        isLoadingSkins = true;
+        
+        const grid = document.getElementById('shopGrid');
+        grid.innerHTML = '<div class="shop-loading">' + t('shop_loading') + '</div>';
+        
+        try {
+            const skinsRes = await fetch(`${API_BASE}/api/skins?user_id=${userId}`);
+            const skinsData = await skinsRes.json();
+            console.log('📦 Skins response:', skinsData);
+            
+            if (skinsData.ok && skinsData.skins) {
+                allSkins = skinsData.skins;
+                
+                const activeRes = await fetch(`${API_BASE}/api/active_skin?user_id=${userId}`);
+                const activeData = await activeRes.json();
+                activeSkinId = activeData.ok ? activeData.skin_id : 0;
+                
+                renderShop();
+                
+                const activeSkin = allSkins.find(s => s.id === activeSkinId);
+                if (activeSkin) {
+                    applySkin(activeSkin);
+                }
+            } else {
+                grid.innerHTML = `<div class="shop-loading">❌ ${skinsData.error || 'Помилка завантаження скінів'}</div>`;
+            }
+        } catch(e) {
+            console.error('❌ Load skins error:', e);
+            grid.innerHTML = `<div class="shop-loading">❌ Помилка: ${e.message}</div>`;
+        }
+        
+        isLoadingSkins = false;
+    }
+
+function renderShop() {
+    const grid = document.getElementById('shopGrid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    const balance = coins;
+    document.getElementById('shopBalance').textContent = balance;
+    
+    if (allSkins.length === 0) {
+        grid.innerHTML = '<div class="shop-loading">😔 Скінів поки що немає</div>';
+        return;
+    }
+    
+    allSkins.forEach(skin => {
+        const item = document.createElement('div');
+        const isOwned = (skin.id === 0) || skin.owned || skin.is_default === 1;
+        const isActive = skin.id === activeSkinId;
+        const canBuy = balance >= skin.price && !isOwned;
+        
+        item.className = 'shop-item';
+        if (!isOwned && !canBuy) item.classList.add('locked');
+        if (isActive) item.classList.add('selected');
+        
+        const colorPreview = skin.color || '#888';
+        const bgPreview = skin.bg_gradient || skin.bg_color || '#1a1a2e';
+        
+        item.innerHTML = `
+    <span class="emoji">${skin.emoji || '🟣'}</span>
+    <div class="name">${skin.name}</div>
+    <div class="preview">
+        <span class="preview-color" style="background:${colorPreview}"></span>
+        <span class="preview-bg" style="background:${bgPreview}"></span>
+    </div>
+    ${isActive ? `<div class="owned">${t('shop_active')}</div>` :
+      isOwned ? `<div class="owned">${t('shop_owned')}</div>` :
+      `<div class="price">💰 ${skin.price}</div>`}
+        `;
+        
+        item.addEventListener('click', () => handleShopClick(skin));
+        grid.appendChild(item);
+    });
+}
+
+async function handleShopClick(skin) {
+    const isOwned = (skin.id === 0) || skin.owned || skin.is_default === 1;
+    
+    // Если скин уже куплен
+    if (isOwned) {
+        if (skin.id !== activeSkinId) {
+            // Активируем уже купленный скин
+            const res = await fetch(`${API_BASE}/api/activate_skin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, skin_id: skin.id })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                activeSkinId = skin.id;
+                showToast(`✅ Скін "${skin.name}" активовано!`, 'success');
+                renderShop();
+                applySkin(skin);
+            } else {
+                showToast(`❌ ${data.error}`, 'error');
+            }
+        }
+        return;
+    }
+    
+    // Покупка нового скина
+    if (coins < skin.price) {
+        showToast(t('insufficient', { price: skin.price }), 'error');
+        return;
+    }
+    
+    const res = await fetch(`${API_BASE}/api/buy_skin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, skin_id: skin.id })
+    });
+    const data = await res.json();
+    
+    if (data.ok) {
+        coins = data.new_balance;
+        activeSkinId = skin.id;
+        updateCoinsUI();
+        showToast(`🎉 Куплено скін "${skin.name}"!`, 'success');
+        renderShop();
+        applySkin(skin);
+    } else {
+        showToast(`❌ ${data.error}`, 'error');
+    }
+}
+
+    function applySkin(skin) {
+        document.querySelectorAll('.bottle').forEach(el => {
+            el.style.borderColor = skin.color;
+        });
+        
+        const app = document.getElementById('app');
+        if (skin.bg_gradient) {
+            app.style.background = skin.bg_gradient;
+        } else if (skin.bg_color) {
+            app.style.background = skin.bg_color;
+        } else {
+            app.style.background = 'radial-gradient(circle at 20% 20%, #1a1a2e 0%, #0a0a14 90%)';
+        }
+    }
+
+    function openShop() {
+        document.getElementById('shopBalance').textContent = coins;
+        document.getElementById('shopModal').classList.add('active');
+        loadSkins();
+    }
+
+    function closeShop() {
+        document.getElementById('shopModal').classList.remove('active');
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  ЛОГІКА ГРИ
+    // ══════════════════════════════════════════════════════
+    function generateLevel(lvl) {
+        let numColors  = Math.min(3 + Math.floor(lvl / 3), 6);
+        let numBottles = numColors + 2;
+        let pool = [];
+        for (let c = 0; c < numColors; c++)
+            for (let i = 0; i < 4; i++) pool.push(c);
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        let newBottles = [], index = 0;
+        for (let i = 0; i < numColors; i++) {
+            let b = [];
+            for (let j = 0; j < 4; j++) b.push(pool[index++]);
+            newBottles.push(b);
+        }
+        for (let i = 0; i < 2; i++) newBottles.push([]);
+        return newBottles;
+    }
+
+    function initLevel(lvl) {
+        if (pourAnimationTimer) {
+            clearInterval(pourAnimationTimer);
+            pourAnimationTimer = null;
+        }
+        isAnimating = false;
+
+        bottles       = generateLevel(lvl);
+        selectedIndex = -1;
+        history       = [];
+        render();
+        document.getElementById('winModal').classList.remove('active');
+        document.getElementById('levelDisplay').textContent = t('level') + ' ' + lvl;
+        updateCoinsUI();
+        saveBottlesToLocal();
+        pendingReward = 0;
+    }
+
+    function canPour(fi, ti) {
+        if (fi === ti) return false;
+        const f = bottles[fi], t = bottles[ti];
+        if (!f.length) return false;
+        if (t.length === 4) return false;
+        if (t.length > 0 && t[t.length-1] !== f[f.length-1]) return false;
+        return true;
+    }
+
+    function pour(fi, ti) {
+        if (isAnimating) return false;
+        if (!canPour(fi, ti)) return false;
+
+        const f = bottles[fi];
+        const t = bottles[ti];
+        const top = f[f.length - 1];
+
+        let count = 0;
+        for (let i = f.length - 1; i >= 0; i--) {
+            if (f[i] === top) count++;
+            else break;
+        }
+        const pourCount = Math.min(count, 4 - t.length);
+        if (pourCount === 0) return false;
+
+        history.push({ from: fi, to: ti, count: pourCount });
+
+        isAnimating = true;
+        selectedIndex = -1;
+        render();
+
+        let steps = 0;
+        const stepInterval = 120;
+
+        pourAnimationTimer = setInterval(() => {
+            if (f.length > 0 && t.length < 4) {
+                const color = f.pop();
+                t.push(color);
+                playPourSound();
+                render();
+
+                steps++;
+                if (steps >= pourCount) {
+                    clearInterval(pourAnimationTimer);
+                    pourAnimationTimer = null;
+                    isAnimating = false;
+
+                    if (checkWin()) {
+                        handleWin();
+                    }
+                }
+            } else {
+                clearInterval(pourAnimationTimer);
+                pourAnimationTimer = null;
+                isAnimating = false;
+            }
+        }, stepInterval);
+
+        return true;
+    }
+
+    function undo() {
+        if (!history.length || isAnimating) return;
+        const last = history.pop();
+        const f = bottles[last.from], t = bottles[last.to];
+        for (let i = 0; i < last.count; i++) f.push(t.pop());
+        render(); playErrorSound();
+    }
+
+    async function shuffleBottles() {
+    if (isAnimating || shuffleInProgress) return;
+    shuffleInProgress = true;
+    const btn = document.getElementById('shuffleBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ ...';
+
+    showAdWithCallback(
+       // AdControllerReward, // Reward
+        AdControllerInterstitial, // Interstitial
+        () => {
+            performShuffle();
+            btn.textContent = t('shuffle');
+            btn.disabled = false;
+            shuffleInProgress = false;
+        },
+        (errorMsg) => {
+            showToast(t('toast_error', { msg: errorMsg || 'Не вдалося показати рекламу' }), 'error');
+            btn.textContent = t('shuffle');
+            btn.disabled = false;
+            shuffleInProgress = false;
+        }
+    );
+    }
+
+    function performShuffle() {
+    if (isAnimating) return;
+    let all = [];
+    for (let b of bottles) all = all.concat(b);
+    for (let b of bottles) b.length = 0;
+    for (let i = all.length-1; i > 0; i--) {
+        const j = Math.floor(Math.random()*(i+1));
+        [all[i],all[j]] = [all[j],all[i]];
+    }
+    let idx = 0;
+    for (let i = 0; i < bottles.length; i++)
+        for (let j = 0; j < 4 && idx < all.length; j++) bottles[i].push(all[idx++]);
+    history = []; render(); playCoinSound();
+    showCoinAnimation(5);
+}
+
+    function checkWin() {
+        for (let b of bottles) {
+            if (!b.length) continue;
+            if (b.length !== 4 || !b.every(c => c === b[0])) return false;
+        }
+        return true;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  ОБРОБКА ПЕРЕМОГИ
+    // ══════════════════════════════════════════════════════
+    async function handleWin() {
+        const baseReward = CONFIG.levelRewardBase || 10;
+        const bonusPerLevel = CONFIG.levelRewardBonus || 0.5;
+        const reward = Math.round(baseReward + level * bonusPerLevel);
+        pendingReward = reward;
+
+        document.getElementById('winMessage').innerHTML = t('win_message', {
+            reward: reward,
+            coin_icon: coinSvg()
+        });
+        document.getElementById('winModal').classList.add('active');
+        document.getElementById('doubleLoading').style.display = 'none';
+
+        document.getElementById('claimRewardBtn').disabled = false;
+        document.getElementById('doubleRewardBtn').disabled = false;
+
+        playWinSound();
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    }
+
+    async function goToNextLevel() {
+    // Закриваємо модалку
+    document.getElementById('winModal').classList.remove('active');
+    pendingReward = 0;
+
+    const grid = document.getElementById('bottles-grid');
+    // Додаємо анімацію зникнення
+    grid.classList.add('fade-out');
+
+    // Чекаємо завершення анімації (400 мс)
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    // Збільшуємо рівень
+    level++;
+    document.getElementById('levelDisplay').textContent = t('level') + ' ' + level;
+
+    // Ініціалізуємо новий рівень (перемальовує колби)
+    initLevel(level);
+
+    // Видаляємо fade-out і додаємо fade-in для появи
+    grid.classList.remove('fade-out');
+    grid.classList.add('fade-in');
+
+    // Через 400 мс прибираємо fade-in, щоб він не заважав наступним анімаціям
+    setTimeout(() => {
+        grid.classList.remove('fade-in');
+    }, 400);
+
+    // Оновлюємо сервер та зберігаємо стан
+    await updateLevelOnServer(level);
+    saveBottlesToLocal();
+}
+    
+    document.getElementById('claimRewardBtn').addEventListener('click', async () => {
+        if (pendingReward <= 0) return;
+        const reward = pendingReward;
+        document.getElementById('claimRewardBtn').disabled = true;
+        document.getElementById('doubleRewardBtn').disabled = true;
+
+        coins += reward;
+        updateCoinsUI();
+        showCoinAnimation(reward);
+        await addCoinsToServer(reward);
+        showToast(t('toast_claimed', { reward: reward }), 'success');
+        saveBottlesToLocal();
+        await goToNextLevel();
+    });
+
+    document.getElementById('doubleRewardBtn').addEventListener('click', async () => {
+    if (pendingReward <= 0) return;
+    const reward = pendingReward;
+
+    document.getElementById('claimRewardBtn').disabled = true;
+    document.getElementById('doubleRewardBtn').disabled = true;
+    document.getElementById('doubleLoading').style.display = 'block';
+
+    showAdWithCallback(
+        AdControllerReward,  // Контролер Reward
+        // AdControllerInterstitial, // Контролер Interstitial
+        async () => {
+            const doubleReward = reward * 2;
+            coins += doubleReward;
+            updateCoinsUI();
+            showCoinAnimation(doubleReward);
+            await addCoinsToServer(doubleReward);
+            showToast(t('toast_doubled', { reward: doubleReward }), 'success');
+            saveBottlesToLocal();
+            document.getElementById('doubleLoading').style.display = 'none';
+            await goToNextLevel();
+        },
+        (errorMsg) => {
+            document.getElementById('doubleLoading').style.display = 'none';
+            showToast(t('toast_error', { msg: errorMsg }), 'error');
+            document.getElementById('claimRewardBtn').disabled = false;
+            document.getElementById('doubleRewardBtn').disabled = false;
+            playErrorSound();
+        }
+    );
+    });
+
+    // ══════════════════════════════════════════════════════
+    //  РЕНДЕР
+    // ══════════════════════════════════════════════════════
+    function render() {
+        const grid = document.getElementById('bottles-grid');
+        grid.innerHTML = '';
+        bottles.forEach((bottle, index) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'bottle-wrapper';
+            const bottleDiv = document.createElement('div');
+            bottleDiv.className = 'bottle';
+            if (selectedIndex === index) bottleDiv.classList.add('selected');
+            for (let i = 0; i < bottle.length; i++) {
+                const liquid = document.createElement('div');
+                liquid.className = 'liquid';
+                liquid.style.height = '25%';
+                liquid.style.background = COLORS[bottle[i]];
+                liquid.style.color = COLORS[bottle[i]];
+                if (i === 0) liquid.style.borderRadius = '0 0 28px 28px';
+                bottleDiv.appendChild(liquid);
+            }
+            wrapper.appendChild(bottleDiv);
+            wrapper.addEventListener('click', () => handleBottleClick(index));
+            grid.appendChild(wrapper);
+        });
+    }
+
+    function updateCoinsUI() {
+        document.getElementById('coinDisplay').textContent = coins;
+    }
+
+    function handleBottleClick(index) {
+        if (isAnimating || document.getElementById('winModal').classList.contains('active')) return;
+        if (selectedIndex === -1) {
+            if (!bottles[index].length) return;
+            selectedIndex = index; render(); return;
+        }
+        if (selectedIndex === index) { selectedIndex = -1; render(); return; }
+        const success = pour(selectedIndex, index);
+        if (success) {
+            selectedIndex = -1;
+            render();
+        } else {
+            selectedIndex = -1;
+            render();
+            playErrorSound();
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+    }
+
+    // ── ОНОВЛЕННЯ UI (локалізація) ──────────────────────
+    function updateUI() {
+        document.getElementById('undoBtn').textContent = t('undo');
+        document.getElementById('shuffleBtn').textContent = t('shuffle');
+        document.getElementById('shopBtn').textContent = t('shop');
+        document.getElementById('withdrawBtn').textContent = t('withdraw');
+        document.getElementById('claimRewardBtn').textContent = t('claim');
+        document.getElementById('doubleRewardBtn').textContent = t('double');
+        document.getElementById('doubleLoadingText').textContent = t('loading_ad');
+        document.getElementById('closeShopBtn').textContent = t('close');
+        document.getElementById('closeWithdrawBtn').textContent = t('cancel');
+        document.getElementById('watchAdWithdrawBtn').textContent = t('watch_ad');
+        document.getElementById('loadingText').textContent = t('loading');
+        document.getElementById('shopLoadingText').textContent = t('shop_loading');
+        document.getElementById('shopTitle').textContent = t('shop_title');
+        document.getElementById('shopBalanceLabel').textContent = t('shop_balance');
+        document.getElementById('shopCoinsLabel').textContent = t('shop_coins');
+        document.getElementById('winTitle').textContent = t('win_title');
+        document.getElementById('withdrawTitle').textContent = t('withdraw_title');
+        document.getElementById('withdrawSub').textContent = t('withdraw_sub');
+        document.getElementById('withdrawStep1').textContent = t('withdraw_step1');
+        document.getElementById('withdrawStep2').textContent = t('withdraw_step2');
+        document.getElementById('withdrawStep3').textContent = t('withdraw_step3', { threshold: CONFIG.withdrawThresholdUSDT || 500 });
+        document.getElementById('adLoadingText').textContent = t('ad_loading');
+        document.getElementById('levelDisplay').textContent = t('level') + ' ' + level;
+        if (pendingReward > 0) {
+            document.getElementById('winMessage').innerHTML = t('win_message', {
+                reward: pendingReward,
+                coin_icon: coinSvg()
+            });
+        }
+        document.getElementById('loadingText').textContent = t('loading');
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  ЗАВАНТАЖЕННЯ КОНФІГУ
+    // ══════════════════════════════════════════════════════
+    async function loadConfig() {
+        try {
+            const response = await fetch(`${API_BASE}/api/config`);
+            const data = await response.json();
+            if (data.ok) {
+                CONFIG = data;
+                MIN_WITHDRAW = CONFIG.minWithdrawCoins || 20;
+                const adBtn = document.getElementById('adBtn');
+                if (CONFIG.rewardPerAd) {
+                    adBtn.textContent = t('ad', { reward: CONFIG.rewardPerAd });
+                }
+                console.log('✅ Config loaded:', CONFIG);
+            }
+        } catch(e) {
+            console.warn('⚠️ Failed to load config, using defaults');
+            CONFIG = {
+                rewardPerAd: 5,
+                minWithdrawCoins: 20,
+                withdrawThresholdUSDT: 500,
+                referralBonus: 50,
+                levelRewardBase: 10,
+                levelRewardBonus: 0.5
+            };
+            MIN_WITHDRAW = CONFIG.minWithdrawCoins;
+            const adBtn = document.getElementById('adBtn');
+            adBtn.textContent = t('ad', { reward: CONFIG.rewardPerAd });
+        }
+        document.getElementById('withdrawStep3').textContent = t('withdraw_step3', { threshold: CONFIG.withdrawThresholdUSDT || 500 });
+        updateUI();
+    }
+// ══════════════════════════════════════════════════════
+//  ОБРОБНИКИ КНОПОК
+// ══════════════════════════════════════════════════════
+document.getElementById('undoBtn').addEventListener('click', undo);
+document.getElementById('shuffleBtn').addEventListener('click', shuffleBottles); // використовує AdControllerReward
+document.getElementById('adBtn').addEventListener('click', showSimpleAd);        // використовує AdControllerReward
+document.getElementById('shopBtn').addEventListener('click', openShop);
+document.getElementById('closeShopBtn').addEventListener('click', closeShop);
+document.getElementById('withdrawBtn').addEventListener('click', openWithdrawModal);
+document.getElementById('closeWithdrawBtn').addEventListener('click', closeWithdrawModal);
+document.getElementById('watchAdWithdrawBtn').addEventListener('click', watchAdAndWithdraw); // використовує AdControllerInterstitial
+
+    // ══════════════════════════════════════════════════════
+    //  СТАРТ
+    // ══════════════════════════════════════════════════════
+    async function initGame() {
+        await loadConfig();
+
+        const levelSynced = await syncLevel();
+        const balanceSynced = await syncBalance();
+
+        if (!levelSynced) {
+            level = 1;
+            document.getElementById('levelDisplay').textContent = t('level') + ' ' + level;
+        }
+        if (!balanceSynced) {
+            coins = 100;
+            updateCoinsUI();
+        }
+
+        const bottlesLoaded = loadBottlesFromLocal();
+        if (!bottlesLoaded) {
+            initLevel(level);
+        }
+
+        loadSkins();
+
+        document.getElementById('loading').style.display = 'none';
+
+        console.log('🦅 Game initialized | Level:', level, '| Balance:', coins);
+    }
+
+    initGame();
+
+    setInterval(saveBottlesToLocal, 10000);
+    window.addEventListener('beforeunload', saveBottlesToLocal);
+    window.addEventListener('beforeunload', function() {
+        if (pourAnimationTimer) clearInterval(pourAnimationTimer);
+    });
+    console.log('🦅 ColorFlow loaded | userId:', userId);
+    </script>
+</body>
+</html>
